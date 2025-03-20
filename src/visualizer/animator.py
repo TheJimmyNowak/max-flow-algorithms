@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from typing import List, Dict, Tuple, Optional
 import numpy as np
+from ..utils.metrics import AlgorithmMetrics
 
 class MaxFlowAnimator:
     def __init__(self, graph: nx.DiGraph):
@@ -103,7 +104,7 @@ class MaxFlowAnimator:
         self,
         paths: List[List[int]],
         residual_graphs: List[nx.DiGraph],
-        metrics: List[Dict]
+        metrics: List[AlgorithmMetrics]
     ) -> FuncAnimation:
         """
         Create animation of the max flow algorithm.
@@ -159,9 +160,10 @@ class MaxFlowAnimator:
             )
             
             # Update title with metrics
-            metric = metrics[frame]
+            metric = metrics[frame].to_dict()
             title = f"Step {frame + 1}/{len(paths)}\n"
-            title += f"Total Flow: {metric['total_flow']:.2f}\n"
+            title += f"Path: {' -> '.join(map(str, paths[frame]))}\n"
+            title += f"Flow: {metric['total_flow']:.2f}\n"
             title += f"Paths Found: {metric['paths_found']}"
             self.ax.set_title(title, pad=20)
             

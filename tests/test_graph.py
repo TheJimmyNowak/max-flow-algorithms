@@ -216,6 +216,11 @@ def test_generator_get_edge_capacity():
     for u, v, data in graph.edges(data=True):
         assert generator.get_edge_capacity(u, v) == data['capacity']
     
+    # Find an edge that doesn't exist
+    all_possible_edges = [(i, j) for i in range(3) for j in range(3) if i != j]
+    existing_edges = list(graph.edges())
+    non_existent_edge = next(edge for edge in all_possible_edges if edge not in existing_edges)
+    
     # Test getting capacity of non-existent edge
     with pytest.raises(KeyError):
-        generator.get_edge_capacity(0, 2)  # Assuming this edge doesn't exist
+        generator.get_edge_capacity(non_existent_edge[0], non_existent_edge[1])

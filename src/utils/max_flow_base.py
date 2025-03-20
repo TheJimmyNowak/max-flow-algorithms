@@ -77,6 +77,47 @@ class MaxFlowBase:
         
         return max_flow
     
+    def compute_max_flow_with_history(self, source: int, sink: int) -> Tuple[float, List[List[int]], List[nx.DiGraph], List[Dict]]:
+        """
+        Compute maximum flow and track history of paths and residual graphs.
+        
+        Args:
+            source: Source node
+            sink: Sink node
+            
+        Returns:
+            Tuple containing:
+            - Maximum flow value
+            - List of augmenting paths found
+            - List of residual graphs at each step
+            - List of metrics at each step
+        """
+        if not self.residual_graph.has_node(source) or not self.residual_graph.has_node(sink):
+            raise KeyError("Source or sink node not in graph")
+        
+        self.metrics.start_tracking()
+        max_flow = 0.0
+        paths = []
+        residual_graphs = [self.residual_graph.copy()]
+        metrics_history = []
+        
+        while True:
+            path = self.find_augmenting_path(source, sink)
+            if not path:
+                break
+            
+            flow = self.find_min_capacity(path)
+            self.update_residual_capacities(path, flow)
+            max_flow += flow
+            self.metrics.add_path(flow)
+            
+            # Record history
+            paths.append(path)
+            residual_graphs.append(self.residual_graph.copy())
+            metrics_history.append(self.metrics.get_metrics())
+        
+        return max_flow, paths, residual_graphs, metrics_history
+    
     def get_metrics(self):
         """Get algorithm performance metrics."""
         return self.metrics.get_metrics()
