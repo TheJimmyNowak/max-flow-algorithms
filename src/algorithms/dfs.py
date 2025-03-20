@@ -39,28 +39,27 @@ class DFSMaxFlow(MaxFlowBase):
         if not self.residual_graph.has_node(source) or not self.residual_graph.has_node(sink):
             raise KeyError("Source or sink node not in graph")
 
-        # Initialize visited set and path for first call
-        if visited is None:
-            visited = set()
-        if path is None:
-            path = [source]
+        # Initialize visited set
+        visited = set()
+        stack = [(source, [source])]
 
-        current = path[-1]
-        self.metrics.increment_step()
-        self.metrics.add_visited_node(current)
+        while stack:
+            current, path = stack.pop()
+            self.metrics.increment_step()
+            self.metrics.add_visited_node(current)
 
-        if current == sink:
-            return path
+            if current == sink:
+                return path
 
-        visited.add(current)
+            if current not in visited:
+                visited.add(current)
+                for neighbor in self.residual_graph.neighbors(current):
+                    if (
+                        neighbor not in visited 
+                        and self.residual_graph[current][neighbor]["capacity"] > 0
+                    ):
+                        stack.append((neighbor, path + [neighbor]))
 
-        for neighbor in self.residual_graph.neighbors(current):
-            if neighbor not in visited and self.residual_graph[current][neighbor]["capacity"] > 0:
-                new_path = self.find_augmenting_path(source, sink, visited, path + [neighbor])
-                if new_path:
-                    return new_path
-
-        visited.remove(current)
         return None
 
     def update_residual_capacities(self, path: List[int], flow: float) -> None:
