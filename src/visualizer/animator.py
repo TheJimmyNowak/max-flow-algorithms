@@ -103,82 +103,113 @@ class MaxFlowAnimator:
     def create_animation(
         self,
         paths: List[List[int]],
-        residual_graphs: List[nx.DiGraph],
+        residuals: List[nx.DiGraph],
         metrics: List[AlgorithmMetrics]
     ) -> FuncAnimation:
         """
-        Create animation of the max flow algorithm.
+        Create an animation showing the flow of the algorithm.
         
         Args:
             paths: List of augmenting paths found
-            residual_graphs: List of residual graphs at each step
+            residuals: List of residual graphs at each step
             metrics: List of metrics at each step
             
         Returns:
-            Matplotlib animation object
+            matplotlib.animation.FuncAnimation: The animation object
         """
+        fig, ax = plt.subplots(figsize=(12, 8))
+        
+        # Calculate node positions once and reuse them
+        pos = nx.spring_layout(self.graph)
+        
         def update(frame):
-            self.ax.clear()
+            ax.clear()
+            current_graph = residuals[frame]
+            current_metrics = metrics[frame]
             
-            # Update colors and labels
-            self.update_edge_colors(paths[frame] if frame < len(paths) else None)
-            self.update_node_colors(paths[frame] if frame < len(paths) else None)
-            self.update_edge_labels(residual_graphs[frame])
+            # Draw edges with different styles based on flow
+            edge_styles = []
+            for u, v in current_graph.edges():
+                # Get original capacity from the graph
+                original_capacity = current_graph[u][v].get('original_capacity', current_graph[u][v]['capacity'])
+                current_capacity = current_graph[u][v]['capacity']
+                
+                if current_capacity < original_capacity:
+                    # Edge has flow
+                    if current_capacity > 0:
+                        # Partial flow
+                        edge_styles.append('solid')
+                    else:
+                        # Full flow
+                        edge_styles.append('solid')
+                else:
+                    # No flow
+                    edge_styles.append('dashed')
             
-            # Draw the graph
-            nx.draw_networkx_edges(
-                self.graph,
-                self.pos,
-                ax=self.ax,
-                edge_color=self.edge_colors,
-                arrows=True,
-                arrowsize=20
-            )
+            # Draw edges with different styles
+            for (u, v), style in zip(current_graph.edges(), edge_styles):
+                nx.draw_networkx_edges(current_graph, pos, edgelist=[(u, v)], edge_color='black',
+                                     arrows=True, arrowsize=20, style=style,
+                                     connectionstyle="arc3,rad=0")
             
-            nx.draw_networkx_nodes(
-                self.graph,
-                self.pos,
-                ax=self.ax,
-                node_color=self.node_colors,
-                node_size=500
-            )
+            # Draw nodes with different colors based on type and current path
+            node_colors = []
+            for node in current_graph.nodes():
+                if node in paths[frame]:
+                    # Node is in current path
+                    node_colors.append('yellow')  # Highlight current path
+                elif current_graph.nodes[node].get('type') == 'source':
+                    node_colors.append('green')
+                elif current_graph.nodes[node].get('type') == 'sink':
+                    node_colors.append('red')
+                else:
+                    node_colors.append('lightblue')
             
-            nx.draw_networkx_labels(
-                self.graph,
-                self.pos,
-                ax=self.ax,
-                font_size=10,
-                font_weight='bold'
-            )
+            # Draw nodes with larger size to ensure labels are visible
+            nx.draw_networkx_nodes(current_graph, pos, node_color=node_colors, node_size=500)
             
-            nx.draw_networkx_edge_labels(
-                self.graph,
-                self.pos,
-                edge_labels=self.edge_labels,
-                ax=self.ax,
-                font_size=8
-            )
+            # Draw node labels
+            nx.draw_networkx_labels(current_graph, pos, font_size=10, font_weight='bold')
             
-            # Update title with metrics
-            metric = metrics[frame].to_dict()
-            title = f"Step {frame + 1}/{len(paths)}\n"
-            title += f"Path: {' -> '.join(map(str, paths[frame]))}\n"
-            title += f"Flow: {metric['total_flow']:.2f}\n"
-            title += f"Paths Found: {metric['paths_found']}"
-            self.ax.set_title(title, pad=20)
+            # Draw edge labels
+            edge_labels = {}
+            for u, v in current_graph.edges():
+                original_capacity = current_graph[u][v].get('original_capacity', current_graph[u][v]['capacity'])
+                current_capacity = current_graph[u][v]['capacity']
+                flow = original_capacity - current_capacity
+                edge_labels[(u, v)] = f"{flow}/{original_capacity}"
             
-            self.ax.axis('off')
+            nx.draw_networkx_edge_labels(current_graph, pos, edge_labels=edge_labels)
+            
+            # Add source and sink labels with background
+            for node, attr in current_graph.nodes(data=True):
+                if attr.get('type') == 'source':
+                    # Add "Source" label above the node with white background
+                    plt.annotate('Source', xy=pos[node], xytext=(0, 30), 
+                               textcoords='offset points', ha='center', va='bottom',
+                               fontsize=12, fontweight='bold', color='green',
+                               bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
+                elif attr.get('type') == 'sink':
+                    # Add "Sink" label below the node with white background
+                    plt.annotate('Sink', xy=pos[node], xytext=(0, -30), 
+                               textcoords='offset points', ha='center', va='top',
+                               fontsize=12, fontweight='bold', color='red',
+                               bbox=dict(facecolor='white', edgecolor='none', alpha=0.7))
+            
+            # Add metrics information
+            metrics_dict = current_metrics.to_dict()
+            metrics_text = f"Step {frame + 1}/{len(paths)}\n"
+            metrics_text += f"Total Flow: {metrics_dict['total_flow']:.1f}\n"
+            metrics_text += f"Paths Found: {metrics_dict['paths_found']}\n"
+            metrics_text += f"Path: {' -> '.join(map(str, paths[frame]))}"
+            
+            plt.text(0.02, 0.98, metrics_text, transform=ax.transAxes,
+                    verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+            
+            plt.title("Maximum Flow Algorithm Progress", pad=20)
+            plt.axis('off')
         
-        # Create animation
-        anim = FuncAnimation(
-            self.fig,
-            update,
-            frames=len(paths),
-            interval=1000,  # 1 second per frame
-            repeat=False
-        )
-        
-        return anim
+        return FuncAnimation(fig, update, frames=len(paths), interval=2000, repeat=False)
     
     def show(self) -> None:
         """Display the current state of the visualization."""

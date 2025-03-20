@@ -1,72 +1,12 @@
 #!/usr/bin/env python3
 
-import matplotlib.pyplot as plt
 import networkx as nx
-from src.graph.input_handler import GraphInputHandler
-from src.graph.generator import GraphGenerator
+import os
+from src.graph.examples import create_example_graph, create_random_graph
 from src.algorithms.bfs import BFSMaxFlow
 from src.algorithms.dfs import DFSMaxFlow
-from src.visualizer.animator import MaxFlowAnimator
-
-def create_example_graph():
-    """Create an example graph with known maximum flow."""
-    handler = GraphInputHandler()
-    
-    # Add nodes
-    handler.add_node(0, 'source')
-    handler.add_node(1, 'intermediate')
-    handler.add_node(2, 'intermediate')
-    handler.add_node(3, 'sink')
-    
-    # Add edges with capacities
-    handler.add_edge(0, 1, 10.0)  # source -> 1
-    handler.add_edge(0, 2, 10.0)  # source -> 2
-    handler.add_edge(1, 2, 2.0)   # 1 -> 2
-    handler.add_edge(1, 3, 4.0)   # 1 -> sink
-    handler.add_edge(2, 3, 9.0)   # 2 -> sink
-    
-    return handler.get_graph()
-
-def create_random_graph():
-    """Create a random graph for testing."""
-    generator = GraphGenerator()
-    return generator.generate_random_graph(
-        num_nodes=6,
-        num_edges=8,
-        num_sources=1,
-        num_sinks=1,
-        min_capacity=1.0,
-        max_capacity=10.0
-    )
-
-def save_graph_visualization(graph: nx.DiGraph, filename: str, title: str = "Graph Visualization"):
-    """Save a static visualization of the graph."""
-    plt.figure(figsize=(12, 8))
-    pos = nx.spring_layout(graph)
-    
-    # Draw edges
-    nx.draw_networkx_edges(graph, pos, edge_color='gray', arrows=True, arrowsize=20)
-    
-    # Draw nodes with different colors based on type
-    node_colors = []
-    for node in graph.nodes():
-        if graph.nodes[node].get('type') == 'source':
-            node_colors.append('green')
-        elif graph.nodes[node].get('type') == 'sink':
-            node_colors.append('red')
-        else:
-            node_colors.append('lightblue')
-    
-    nx.draw_networkx_nodes(graph, pos, node_color=node_colors, node_size=500)
-    
-    # Draw labels
-    nx.draw_networkx_labels(graph, pos, font_size=10, font_weight='bold')
-    nx.draw_networkx_edge_labels(graph, pos, edge_labels=nx.get_edge_attributes(graph, 'capacity'))
-    
-    plt.title(title, pad=20)
-    plt.axis('off')
-    plt.savefig(filename, bbox_inches='tight', dpi=300)
-    plt.close()
+from src.visualizer.static_visualizer import save_graph_visualization
+from src.visualizer.algorithm_visualizer import run_algorithm_visualization
 
 def main():
     # Create both example and random graphs
@@ -95,40 +35,29 @@ def main():
     print("\nSaving initial graph visualization...")
     save_graph_visualization(graph, 'initial_graph.png', "Initial Graph State")
     
-    # Run BFS max flow algorithm
-    print("\nRunning BFS max flow algorithm...")
-    bfs = BFSMaxFlow(graph)
-    bfs_flow, bfs_paths, bfs_residuals, bfs_metrics = bfs.compute_max_flow_with_history(source, sink)
-    print(f"BFS Maximum flow: {bfs_flow}")
-    print(f"Number of augmenting paths found: {len(bfs_paths)}")
-    print("\nAugmenting paths:")
-    for i, path in enumerate(bfs_paths):
-        print(f"Path {i + 1}: {path}")
+    # Run and visualize BFS algorithm
+    bfs_flow, bfs_paths, bfs_residuals, bfs_metrics = run_algorithm_visualization(
+        graph, "BFS", BFSMaxFlow, source, sink
+    )
     
-    # Run DFS max flow algorithm
-    print("\nRunning DFS max flow algorithm...")
-    dfs = DFSMaxFlow(graph)
-    dfs_flow = dfs.compute_max_flow(source, sink)
-    print(f"DFS Maximum flow: {dfs_flow}")
+    # Run and visualize DFS algorithm
+    dfs_flow, dfs_paths, dfs_residuals, dfs_metrics = run_algorithm_visualization(
+        graph, "DFS", DFSMaxFlow, source, sink
+    )
     
-    # Create and save animation
-    print("\nCreating flow animation...")
-    animator = MaxFlowAnimator(graph)
-    animation = animator.create_animation(bfs_paths, bfs_residuals, bfs_metrics)
+    print("\nAll visualizations have been saved to the 'output' directory:")
+    print("- output/initial_graph.png: Initial state of the graph")
+    print("- output/bfs_flow.gif: BFS algorithm animation")
+    print("- output/bfs_final_graph.png: BFS final state")
+    print("- output/dfs_flow.gif: DFS algorithm animation")
+    print("- output/dfs_final_graph.png: DFS final state")
     
-    # Save animation
-    print("Saving animation to 'max_flow.gif'...")
-    animation.save('max_flow.gif', writer='pillow', fps=1)
-    
-    # Save final state visualization
-    print("Saving final state visualization...")
-    final_graph = bfs_residuals[-1]
-    save_graph_visualization(final_graph, 'final_graph.png', "Final Graph State")
-    
-    print("\nAll visualizations have been saved:")
-    print("- initial_graph.png: Initial state of the graph")
-    print("- max_flow.gif: Animation of the flow computation")
-    print("- final_graph.png: Final state of the graph")
+    # Compare results
+    print("\nAlgorithm Comparison:")
+    print(f"BFS Maximum Flow: {bfs_flow}")
+    print(f"DFS Maximum Flow: {dfs_flow}")
+    print(f"Number of paths (BFS): {len(bfs_paths)}")
+    print(f"Number of paths (DFS): {len(dfs_paths)}")
 
 if __name__ == "__main__":
     main() 
