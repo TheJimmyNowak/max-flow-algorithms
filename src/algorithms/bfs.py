@@ -1,5 +1,5 @@
 import networkx as nx
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Set
 from collections import deque
 from ..utils.metrics import MetricsTracker
 from ..utils.max_flow_base import MaxFlowBase
@@ -8,7 +8,7 @@ class BFSMaxFlow(MaxFlowBase):
     """BFS implementation of maximum flow algorithm."""
     
     def __init__(self, graph: nx.DiGraph):
-        self.graph = graph
+        super().__init__(graph)
         self.residual_graph = graph.copy()
         self.metrics = MetricsTracker()
         

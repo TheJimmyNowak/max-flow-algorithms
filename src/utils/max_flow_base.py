@@ -1,17 +1,34 @@
 import networkx as nx
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Set
 from .metrics import MetricsTracker
 
 class MaxFlowBase:
+    """Base class for maximum flow algorithms."""
+    
     def __init__(self, graph: nx.DiGraph):
+        """
+        Initialize the algorithm with a graph.
+        
+        Args:
+            graph: NetworkX directed graph with capacity attributes
+        """
         self.graph = graph
         self.residual_graph = graph.copy()
         self.metrics = MetricsTracker()
         
+        # Cache node types for faster access
+        self._source_nodes = self._get_nodes_of_type('source')
+        self._sink_nodes = self._get_nodes_of_type('sink')
+        
         # Initialize residual graph with reverse edges
-        for u, v, data in self.graph.edges(data=True):
+        for u, v, _ in self.graph.edges(data=True):
             if not self.residual_graph.has_edge(v, u):
                 self.residual_graph.add_edge(v, u, capacity=0)
+    
+    def _get_nodes_of_type(self, node_type: str) -> Set[int]:
+        """Get set of nodes of specified type."""
+        return {node for node, data in self.graph.nodes(data=True) 
+                if data.get('type') == node_type}
     
     def update_residual_capacities(self, path: List[int], flow: float) -> None:
         """
@@ -41,12 +58,8 @@ class MaxFlowBase:
         Returns:
             Minimum capacity along the path
         """
-        min_capacity = float('inf')
-        for i in range(len(path) - 1):
-            u, v = path[i], path[i + 1]
-            capacity = self.residual_graph[u][v]['capacity']
-            min_capacity = min(min_capacity, capacity)
-        return min_capacity
+        return min(self.residual_graph[u][v]['capacity'] 
+                  for u, v in zip(path[:-1], path[1:]))
     
     def compute_max_flow(self, source: int, sink: int) -> float:
         """
@@ -118,7 +131,7 @@ class MaxFlowBase:
         
         return max_flow, paths, residual_graphs, metrics_history
     
-    def get_metrics(self):
+    def get_metrics(self) -> Dict:
         """Get algorithm performance metrics."""
         return self.metrics.get_metrics()
     

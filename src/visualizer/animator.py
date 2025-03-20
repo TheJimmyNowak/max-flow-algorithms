@@ -119,8 +119,12 @@ class MaxFlowAnimator:
         """
         fig, ax = plt.subplots(figsize=(12, 8))
         
-        # Calculate node positions once and reuse them
-        pos = nx.spring_layout(self.graph)
+        # Check if graph is planar and calculate positions once
+        is_planar, _ = nx.check_planarity(self.graph)
+        if is_planar:
+            pos = nx.planar_layout(self.graph)
+        else:
+            pos = nx.spring_layout(self.graph)
         
         def update(frame):
             ax.clear()
@@ -133,6 +137,7 @@ class MaxFlowAnimator:
                 # Get original capacity from the graph
                 original_capacity = current_graph[u][v].get('original_capacity', current_graph[u][v]['capacity'])
                 current_capacity = current_graph[u][v]['capacity']
+                flow = original_capacity - current_capacity
                 
                 if current_capacity < original_capacity:
                     # Edge has flow
@@ -148,9 +153,21 @@ class MaxFlowAnimator:
             
             # Draw edges with different styles
             for (u, v), style in zip(current_graph.edges(), edge_styles):
-                nx.draw_networkx_edges(current_graph, pos, edgelist=[(u, v)], edge_color='black',
-                                     arrows=True, arrowsize=20, style=style,
-                                     connectionstyle="arc3,rad=0")
+                # Get original capacity and current capacity
+                original_capacity = current_graph[u][v].get('original_capacity', current_graph[u][v]['capacity'])
+                current_capacity = current_graph[u][v]['capacity']
+                flow = original_capacity - current_capacity
+                
+                if current_capacity < original_capacity:
+                    # Draw yellow arrow and line for edges with flow
+                    nx.draw_networkx_edges(current_graph, pos, edgelist=[(u, v)], edge_color='yellow',
+                                         arrows=True, arrowsize=20, style=style,
+                                         connectionstyle="arc3,rad=0", width=2)
+                else:
+                    # Draw edge without arrow if no flow
+                    nx.draw_networkx_edges(current_graph, pos, edgelist=[(u, v)], edge_color='black',
+                                         arrows=False, style=style,
+                                         connectionstyle="arc3,rad=0", width=1)
             
             # Draw nodes with different colors based on type and current path
             node_colors = []
@@ -171,13 +188,13 @@ class MaxFlowAnimator:
             # Draw node labels
             nx.draw_networkx_labels(current_graph, pos, font_size=10, font_weight='bold')
             
-            # Draw edge labels
+            # Draw edge labels with flow values
             edge_labels = {}
             for u, v in current_graph.edges():
                 original_capacity = current_graph[u][v].get('original_capacity', current_graph[u][v]['capacity'])
                 current_capacity = current_graph[u][v]['capacity']
                 flow = original_capacity - current_capacity
-                edge_labels[(u, v)] = f"{flow}/{original_capacity}"
+                edge_labels[(u, v)] = f"{flow:.1f}"  # Only show flow value
             
             nx.draw_networkx_edge_labels(current_graph, pos, edge_labels=edge_labels)
             
