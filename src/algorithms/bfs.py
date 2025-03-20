@@ -88,7 +88,7 @@ class BFSMaxFlow(MaxFlowBase):
             min_capacity = min(min_capacity, capacity)
         return min_capacity
 
-    def compute_max_flow(self, source: int, sink: int) -> float:
+    def compute_max_flow(self, source: int, sink: int) -> Tuple[float, List[List[int]], List[nx.DiGraph]]:
         """
         Compute maximum flow using BFS-based Ford-Fulkerson algorithm.
 
@@ -97,13 +97,18 @@ class BFSMaxFlow(MaxFlowBase):
             sink: Sink node
 
         Returns:
-            Maximum flow value
+            Tuple containing:
+            - Maximum flow value
+            - List of augmenting paths
+            - List of residual graphs at each step
         """
         if not self.residual_graph.has_node(source) or not self.residual_graph.has_node(sink):
             raise KeyError("Source or sink node not in graph")
 
         self.metrics.start_tracking()
         max_flow = 0.0
+        augmenting_paths = []
+        residual_graphs = [self.residual_graph.copy()]
 
         while True:
             path = self.find_augmenting_path(source, sink)
@@ -113,9 +118,12 @@ class BFSMaxFlow(MaxFlowBase):
             flow = self.find_min_capacity(path)
             self.update_residual_capacities(path, flow)
             max_flow += flow
+            
+            augmenting_paths.append(path)
+            residual_graphs.append(self.residual_graph.copy())
             self.metrics.add_path(flow)
 
-        return max_flow
+        return max_flow, augmenting_paths, residual_graphs
 
     def get_metrics(self):
         """Get algorithm performance metrics."""

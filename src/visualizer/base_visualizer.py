@@ -1,170 +1,177 @@
 #!/usr/bin/env python3
 
-import matplotlib.pyplot as plt
+"""Base class for graph visualization with common functionality."""
+
 import networkx as nx
-from typing import Dict, Tuple, List, Optional
+import matplotlib.pyplot as plt
+from typing import List, Optional, Tuple, Dict
+from matplotlib.collections import LineCollection
+from matplotlib.patches import FancyArrowPatch
 
 
 class BaseGraphVisualizer:
-    """Base class for graph visualization that handles common drawing logic."""
+    """Base class for graph visualization with common functionality."""
 
     def __init__(self, graph: nx.DiGraph):
         """
-        Initialize the visualizer with a graph.
+        Initialize the visualizer.
 
         Args:
             graph: NetworkX directed graph to visualize
         """
         self.graph = graph
         self.fig, self.ax = plt.subplots(figsize=(12, 8))
+        self.pos = self._calculate_layout()
+        self.edge_colors = []
+        self.edge_labels = {}
+        self.node_colors = []
+        self.legend_handles = []
 
-        # Calculate and store graph layout
-        is_planar, _ = nx.check_planarity(graph)
-        self.pos = nx.planar_layout(graph) if is_planar else nx.spring_layout(graph)
+    def _calculate_layout(self) -> Dict[int, Tuple[float, float]]:
+        """
+        Calculate the layout for the graph.
 
-        # Initialize visualization attributes
-        self.edge_colors: List[str] = []
-        self.edge_styles: List[str] = []
-        self.edge_labels: Dict[Tuple[int, int], str] = {}
-        self.node_colors: List[str] = []
+        Returns:
+            Dictionary mapping nodes to their positions
+        """
+        # Try planar layout first
+        try:
+            pos = nx.planar_layout(self.graph)
+        except nx.NetworkXException:
+            # If not planar, try spring layout with better parameters
+            pos = nx.spring_layout(
+                self.graph,
+                k=2.0,  # Optimal distance between nodes
+                iterations=50,  # More iterations for better layout
+                seed=42  # For consistent layout
+            )
+        return pos
 
-    def prepare_edge_attributes(
-        self, path: Optional[List[int]] = None, show_flow: bool = False
+    def _prepare_edge_attributes(
+        self,
+        path: Optional[List[int]] = None,
+        show_flow: bool = False,
+        residual_graph: Optional[nx.DiGraph] = None
     ) -> None:
         """
-        Prepare edge colors, styles, and labels.
+        Prepare edge attributes for visualization.
 
         Args:
-            path: Optional path to highlight
+            path: Current augmenting path if any
             show_flow: Whether to show flow values
+            residual_graph: Residual graph for flow visualization
         """
         self.edge_colors = []
-        self.edge_styles = []
         self.edge_labels = {}
 
         for u, v in self.graph.edges():
-            if show_flow:
-                # Get original capacity from the graph
-                original_capacity = self.graph[u][v].get(
-                    "original_capacity", self.graph[u][v]["capacity"]
-                )
-                current_capacity = self.graph[u][v]["capacity"]
-                flow = original_capacity - current_capacity
-
-                if current_capacity < original_capacity:
-                    # Edge has flow
-                    self.edge_colors.append("yellow")
-                    self.edge_styles.append("solid")
-                    self.edge_labels[(u, v)] = f"{flow:.1f}"
-                else:
-                    # No flow
-                    self.edge_colors.append("black")
-                    self.edge_styles.append("dashed")
+            # Set edge color based on path
+            if path and (u, v) in zip(path[:-1], path[1:]):
+                self.edge_colors.append('red')  # Highlight current path
             else:
-                # If path is provided, highlight edges in the path
-                if path and (u, v) in zip(path[:-1], path[1:]):
-                    self.edge_colors.append("red")
-                else:
-                    self.edge_colors.append("black")
-                self.edge_styles.append("solid")
+                self.edge_colors.append('gray')
 
-    def update_node_colors(self, path: Optional[List[int]] = None) -> None:
+            # Set edge label
+            if show_flow and residual_graph:
+                flow = self.graph[u][v]['capacity'] - residual_graph[u][v]['capacity']
+                self.edge_labels[(u, v)] = f'{flow:.1f}/{self.graph[u][v]["capacity"]:.1f}'
+            else:
+                self.edge_labels[(u, v)] = f'{self.graph[u][v]["capacity"]:.1f}'
+
+    def _update_node_colors(self, path: Optional[List[int]] = None) -> None:
         """
-        Prepare node colors.
+        Update node colors based on current path.
 
         Args:
-            path: Optional path to highlight
+            path: Current augmenting path if any
         """
         self.node_colors = []
         for node in self.graph.nodes():
             if path and node in path:
-                self.node_colors.append("red")
-            elif self.graph.nodes[node].get("type") == "source":
-                self.node_colors.append("green")
-            elif self.graph.nodes[node].get("type") == "sink":
-                self.node_colors.append("red")
+                if node == path[0]:  # Source
+                    self.node_colors.append('lightgreen')
+                elif node == path[-1]:  # Sink
+                    self.node_colors.append('lightcoral')
+                else:  # Path nodes
+                    self.node_colors.append('lightyellow')
             else:
-                self.node_colors.append("lightblue")
+                if node == self.graph.nodes[node].get('type') == 'source':
+                    self.node_colors.append('lightgreen')
+                elif node == self.graph.nodes[node].get('type') == 'sink':
+                    self.node_colors.append('lightcoral')
+                else:
+                    self.node_colors.append('lightblue')
 
-    def draw_graph(self, title: str = "Maximum Flow Graph") -> None:
+    def _draw_graph(self, title: str = "Maximum Flow Graph") -> None:
         """
-        Draw the graph with current attributes.
+        Draw the graph with all attributes.
 
         Args:
             title: Title for the graph
         """
+        # Clear the plot
         self.ax.clear()
 
-        # Draw edges
-        for (u, v), color, style in zip(self.graph.edges(), self.edge_colors, self.edge_styles):
-            nx.draw_networkx_edges(
-                self.graph,
-                self.pos,
-                edgelist=[(u, v)],
-                edge_color=color,
-                arrows=color == "yellow" or color == "red",
-                arrowsize=20,
-                style=style,
-                connectionstyle="arc3,rad=0",
-                width=2 if color in ["yellow", "red"] else 1,
-                ax=self.ax,
+        # Draw edges with arrows
+        edges = self.graph.edges()
+        for i, (u, v) in enumerate(edges):
+            # Draw edge line
+
+            # Draw arrow
+            arrow = FancyArrowPatch(
+                (self.pos[u][0], self.pos[u][1]),
+                (self.pos[v][0], self.pos[v][1]),
+                arrowstyle='->',
+                color=self.edge_colors[i],
+                linewidth=2
+            )
+            self.ax.add_patch(arrow)
+
+            # Draw edge label
+            mid_x = (self.pos[u][0] + self.pos[v][0]) / 2
+            mid_y = (self.pos[u][1] + self.pos[v][1]) / 2
+            self.ax.text(
+                mid_x,
+                mid_y,
+                self.edge_labels[(u, v)],
+                horizontalalignment='center',
+                verticalalignment='center',
+                fontsize=8
             )
 
         # Draw nodes
         nx.draw_networkx_nodes(
-            self.graph, self.pos, node_color=self.node_colors, node_size=500, ax=self.ax
+            self.graph,
+            self.pos,
+            ax=self.ax,
+            node_color=self.node_colors,
+            node_size=500
         )
 
         # Draw node labels
-        nx.draw_networkx_labels(self.graph, self.pos, font_size=10, font_weight="bold", ax=self.ax)
+        nx.draw_networkx_labels(
+            self.graph,
+            self.pos,
+            ax=self.ax,
+            font_size=10,
+            font_weight='bold'
+        )
 
-        # Draw edge labels if they exist
-        if self.edge_labels:
-            nx.draw_networkx_edge_labels(
-                self.graph, self.pos, edge_labels=self.edge_labels, font_size=8, ax=self.ax
-            )
-
-        # Add source and sink labels
-        for node, attr in self.graph.nodes(data=True):
-            if attr.get("type") == "source":
-                plt.annotate(
-                    "Source",
-                    xy=self.pos[node],
-                    xytext=(0, 30),
-                    textcoords="offset points",
-                    ha="center",
-                    va="bottom",
-                    fontsize=12,
-                    fontweight="bold",
-                    color="green",
-                    bbox=dict(facecolor="white", edgecolor="none", alpha=0.7),
-                )
-            elif attr.get("type") == "sink":
-                plt.annotate(
-                    "Sink",
-                    xy=self.pos[node],
-                    xytext=(0, -30),
-                    textcoords="offset points",
-                    ha="center",
-                    va="top",
-                    fontsize=12,
-                    fontweight="bold",
-                    color="red",
-                    bbox=dict(facecolor="white", edgecolor="none", alpha=0.7),
-                )
-
+        # Set title and remove axes
         self.ax.set_title(title, pad=20)
-        self.ax.axis("off")
+        self.ax.axis('off')
 
-    def save(self, filename: str) -> None:
-        """
-        Save the current visualization to a file.
-
-        Args:
-            filename: Output filename
-        """
-        plt.savefig(filename, bbox_inches="tight", dpi=300)
+    def _update_legend(self) -> None:
+        """Update the legend with current flow information."""
+        self.legend_handles = [
+            plt.Line2D([0], [0], color='gray', label='Edge'),
+            plt.Line2D([0], [0], color='red', label='Current Path'),
+            plt.Line2D([0], [0], color='lightgreen', label='Source'),
+            plt.Line2D([0], [0], color='lightcoral', label='Sink'),
+            plt.Line2D([0], [0], color='lightyellow', label='Path Node')
+        ]
+        self.ax.legend(handles=self.legend_handles, loc='upper left')
 
     def close(self) -> None:
-        """Close the current figure."""
+        """Close the figure."""
         plt.close(self.fig)

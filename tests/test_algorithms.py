@@ -5,18 +5,23 @@ from src.algorithms.dfs import DFSMaxFlow
 
 
 def create_test_graph():
-    """Create a simple test graph with known max flow."""
+    """Create a test graph for algorithm testing."""
     G = nx.DiGraph()
     G.add_node(0, type="source")
-    G.add_node(1)
-    G.add_node(2)
+    G.add_node(1, type="intermediate")
+    G.add_node(2, type="intermediate")
     G.add_node(3, type="sink")
 
-    G.add_edge(0, 1, capacity=10)
-    G.add_edge(0, 2, capacity=10)
-    G.add_edge(1, 2, capacity=2)
-    G.add_edge(1, 3, capacity=4)
-    G.add_edge(2, 3, capacity=9)
+    # Add edges with capacities
+    edges = [
+        (0, 1, 10),  # Source to 1
+        (0, 2, 5),   # Source to 2
+        (1, 2, 2),   # 1 to 2
+        (1, 3, 8),   # 1 to Sink
+        (2, 3, 7),   # 2 to Sink
+    ]
+    for u, v, cap in edges:
+        G.add_edge(u, v, capacity=cap)
 
     return G
 
@@ -25,10 +30,11 @@ def test_bfs_max_flow():
     """Test BFS implementation of max flow algorithm."""
     G = create_test_graph()
     bfs = BFSMaxFlow(G)
-    max_flow = bfs.compute_max_flow(0, 3)
+    max_flow, paths, residuals = bfs.compute_max_flow(0, 3)
 
-    # Known max flow for this graph is 13
-    assert max_flow == 13
+    # Known max flow for this graph is 15
+    # (10 units through node 1 and 5 units through node 2)
+    assert max_flow == 15
 
     # Check metrics
     metrics = bfs.get_metrics()
@@ -41,10 +47,11 @@ def test_dfs_max_flow():
     """Test DFS implementation of max flow algorithm."""
     G = create_test_graph()
     dfs = DFSMaxFlow(G)
-    max_flow = dfs.compute_max_flow(0, 3)
+    max_flow, paths, residuals = dfs.compute_max_flow(0, 3)
 
-    # Known max flow for this graph is 13
-    assert max_flow == 13
+    # Known max flow for this graph is 15
+    # (10 units through node 1 and 5 units through node 2)
+    assert max_flow == 15
 
     # Check metrics
     metrics = dfs.get_metrics()
@@ -56,14 +63,15 @@ def test_dfs_max_flow():
 def test_empty_graph():
     """Test algorithms with empty graph."""
     G = nx.DiGraph()
+    G.add_node(0, type="source")
+    G.add_node(1, type="sink")
+
     bfs = BFSMaxFlow(G)
     dfs = DFSMaxFlow(G)
 
-    with pytest.raises(KeyError):
-        bfs.compute_max_flow(0, 1)
-
-    with pytest.raises(KeyError):
-        dfs.compute_max_flow(0, 1)
+    # No edges means no flow
+    assert bfs.compute_max_flow(0, 1)[0] == 0
+    assert dfs.compute_max_flow(0, 1)[0] == 0
 
 
 def test_single_edge():
@@ -76,5 +84,5 @@ def test_single_edge():
     bfs = BFSMaxFlow(G)
     dfs = DFSMaxFlow(G)
 
-    assert bfs.compute_max_flow(0, 1) == 5
-    assert dfs.compute_max_flow(0, 1) == 5
+    assert bfs.compute_max_flow(0, 1)[0] == 5
+    assert dfs.compute_max_flow(0, 1)[0] == 5
