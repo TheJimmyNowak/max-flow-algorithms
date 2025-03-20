@@ -1,9 +1,11 @@
 import networkx as nx
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Set
 
 class GraphInputHandler:
     def __init__(self):
         self.graph = nx.DiGraph()
+        self._source_nodes: Set[int] = set()
+        self._sink_nodes: Set[int] = set()
     
     def add_node(self, node_id: int, node_type: str = 'intermediate') -> None:
         """
@@ -17,6 +19,10 @@ class GraphInputHandler:
             raise ValueError("Node type must be 'source', 'sink', or 'intermediate'")
         
         self.graph.add_node(node_id, type=node_type)
+        if node_type == 'source':
+            self._source_nodes.add(node_id)
+        elif node_type == 'sink':
+            self._sink_nodes.add(node_id)
     
     def add_edge(self, from_node: int, to_node: int, capacity: float) -> None:
         """
@@ -44,19 +50,17 @@ class GraphInputHandler:
         Validate the graph structure.
         
         Returns:
-            bool: True if graph is valid, raises ValueError otherwise
+            bool: True if graph is valid
+            
+        Raises:
+            ValueError: If graph structure is invalid
         """
         if not self.graph.is_directed():
             raise ValueError("Graph must be directed")
         
-        sources = [node for node, data in self.graph.nodes(data=True) 
-                  if data.get('type') == 'source']
-        sinks = [node for node, data in self.graph.nodes(data=True) 
-                if data.get('type') == 'sink']
-        
-        if not sources:
+        if not self._source_nodes:
             raise ValueError("Graph must have at least one source")
-        if not sinks:
+        if not self._sink_nodes:
             raise ValueError("Graph must have at least one sink")
         
         # Check if all edges have capacity
@@ -68,13 +72,11 @@ class GraphInputHandler:
     
     def get_sources(self) -> List[int]:
         """Get list of source nodes."""
-        return [node for node, data in self.graph.nodes(data=True) 
-                if data.get('type') == 'source']
+        return list(self._source_nodes)
     
     def get_sinks(self) -> List[int]:
         """Get list of sink nodes."""
-        return [node for node, data in self.graph.nodes(data=True) 
-                if data.get('type') == 'sink']
+        return list(self._sink_nodes)
     
     def get_edge_capacity(self, u: int, v: int) -> float:
         """Get capacity of edge (u,v)."""

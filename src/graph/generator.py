@@ -41,15 +41,14 @@ class GraphGenerator:
         # Add nodes
         self.graph.add_nodes_from(range(num_nodes))
         
-        # Generate all possible edges
+        # Generate all possible edges and shuffle them
         all_edges = [(i, j) for i in range(num_nodes) for j in range(num_nodes) if i != j]
         np.random.shuffle(all_edges)
         
         # Take the first num_edges edges and assign random capacities
-        selected_edges = all_edges[:num_edges]
         edges_with_capacity = [
             (u, v, np.random.uniform(min_capacity, max_capacity))
-            for u, v in selected_edges
+            for u, v in all_edges[:num_edges]
         ]
         
         # Add edges with capacities

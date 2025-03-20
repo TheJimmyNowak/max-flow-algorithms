@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-import networkx as nx
-import os
 from src.graph.examples import create_example_graph, create_random_graph
 from src.algorithms.bfs import BFSMaxFlow
 from src.algorithms.dfs import DFSMaxFlow
@@ -17,7 +15,7 @@ def main():
     graph = example_graph
     
     # Get source and sink nodes
-    source = next(node for node, attr in graph.nodes(data=True) 
+    source = next(node for node, attr in graph.nodes(data=True)
                  if attr.get('type') == 'source')
     sink = next(node for node, attr in graph.nodes(data=True) 
                if attr.get('type') == 'sink')

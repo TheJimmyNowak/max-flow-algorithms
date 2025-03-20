@@ -53,6 +53,10 @@ def run_algorithm_visualization(
     # Create and save animation
     print(f"\nCreating {algorithm_name} flow animation...")
     animation = animator.create_animation(paths, residuals, metrics)
+    
+    # Ensure output directory exists
+    os.makedirs('output', exist_ok=True)
+    
     print(f"Saving {algorithm_name} animation to 'output/{algorithm_name.lower()}_flow.gif'...")
     animation.save(f'output/{algorithm_name.lower()}_flow.gif', writer='pillow')
     
@@ -66,6 +70,11 @@ def run_algorithm_visualization(
     
     # Save final state visualization
     print(f"Saving {algorithm_name} final state visualization...")
-    save_graph_visualization(final_graph, f'output/{algorithm_name.lower()}_final_graph.png', show_flow=True)
+    save_graph_visualization(
+        final_graph,
+        f'output/{algorithm_name.lower()}_final_graph.png',
+        title=f"{algorithm_name} Final State",
+        show_flow=True
+    )
     
     return max_flow, paths, residuals, metrics 

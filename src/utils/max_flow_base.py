@@ -1,6 +1,7 @@
 import networkx as nx
 from typing import List, Dict, Tuple, Optional, Set
-from .metrics import MetricsTracker
+from .metrics import MetricsTracker, AlgorithmMetrics
+
 
 class MaxFlowBase:
     """Base class for maximum flow algorithms."""
@@ -90,7 +91,7 @@ class MaxFlowBase:
         
         return max_flow
     
-    def compute_max_flow_with_history(self, source: int, sink: int) -> Tuple[float, List[List[int]], List[nx.DiGraph], List[Dict]]:
+    def compute_max_flow_with_history(self, source: int, sink: int) -> Tuple[float, List[List[int]], List[nx.DiGraph], List[AlgorithmMetrics]]:
         """
         Compute maximum flow and track history of paths and residual graphs.
         
@@ -131,7 +132,7 @@ class MaxFlowBase:
         
         return max_flow, paths, residual_graphs, metrics_history
     
-    def get_metrics(self) -> Dict:
+    def get_metrics(self) -> AlgorithmMetrics:
         """Get algorithm performance metrics."""
         return self.metrics.get_metrics()
     
