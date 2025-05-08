@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 from typing import List, Tuple, Dict, Optional
+import random
 
 
 class GraphGenerator:
@@ -94,3 +95,34 @@ class GraphGenerator:
         if not self.graph.has_edge(u, v):
             raise KeyError(f"Edge ({u}, {v}) does not exist in the graph")
         return self.graph[u][v]["capacity"]
+
+    def generate_path_bias_graph(self, num_nodes, num_edges, num_sources, num_sinks, min_capacity, max_capacity):
+        G = nx.DiGraph()
+
+        # Stwórz podstawową ścieżkę
+        for i in range(num_nodes - 1):
+            G.add_edge(i, i + 1, capacity=random.uniform(min_capacity, max_capacity))
+
+        # Dodaj dodatkowe losowe krawędzie do zwiększenia złożoności
+        remaining_edges = num_edges - (num_nodes - 1)
+        while remaining_edges > 0:
+            u = random.randint(0, num_nodes - 2)
+            v = random.randint(u + 1, num_nodes - 1)
+            if not G.has_edge(u, v):
+                G.add_edge(u, v, capacity=random.uniform(min_capacity, max_capacity))
+                remaining_edges -= 1
+
+        for node in G.nodes():
+            G.nodes[node]['type'] = 'intermediate'
+
+        self._assign_source_sink(G, num_sources, num_sinks)
+        return G
+
+    def _assign_source_sink(self, G, num_sources, num_sinks):
+        nodes = list(G.nodes())
+        random.shuffle(nodes)
+
+        for i in range(num_sources):
+            G.nodes[nodes[i]]['type'] = 'source'
+        for i in range(num_sinks):
+            G.nodes[nodes[-(i + 1)]]['type'] = 'sink'
